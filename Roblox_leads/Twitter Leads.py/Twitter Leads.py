@@ -16,9 +16,9 @@ driver = webdriver.Chrome(options=options)
 
 driver.get('https://www.roblox.com/login')
 username_field = driver.find_element(By.ID, 'login-username')
-username_field.send_keys('0xUnpeg')
+username_field.send_keys('Enter your username')
 password_field = driver.find_element(By.ID, 'login-password')
-password_field.send_keys('Flavien2002')
+password_field.send_keys('Enter your password')
 password_field.send_keys(Keys.RETURN)
 sleep(5)
 
