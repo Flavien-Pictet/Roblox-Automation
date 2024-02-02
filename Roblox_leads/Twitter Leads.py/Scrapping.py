@@ -102,9 +102,9 @@ def get_recommended_games():
 
 def process_game(game_url):
     global visited_games
-    sleep(random.uniform(4.1, 6.78))
+    sleep(random.uniform(1.1, 1.78))
     driver.get(game_url)
-    sleep(random.uniform(5.2, 6.91))
+    sleep(random.uniform(1.2, 1.91))
     get_social_links_and_save()
     visited_games.add(game_url)
 
@@ -120,13 +120,13 @@ def process_game(game_url):
 
 def get_all_game_urls():
     driver.get('https://www.roblox.com/discover#/sortName/TopGrossing')
-    sleep(random.uniform(4.8, 6.5))  # Adjust sleep time for page load
+    sleep(random.uniform(1.8, 1.9))  # Adjust sleep time for page load
     game_elements = driver.find_elements(By.CLASS_NAME, "game-card-link")
     return [element.get_attribute('href') for element in game_elements]
 
 # --- CHANGE THE INDEX VALUE TO RESUME FROM A SPECIFIC POINT ---
 
-start_index = 13
+start_index = 5
 
 all_game_urls = get_all_game_urls()
 
