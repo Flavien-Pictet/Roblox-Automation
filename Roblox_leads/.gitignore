@@ -1,7 +1,6 @@
 
-clean_links.csv
-twitter_links.csv
 test.py
 .DS_Store
 social_links.csv
 Games_data.py
+clean_data.csv
