@@ -11,6 +11,9 @@ options = webdriver.ChromeOptions()
 options.add_argument("--start-maximized")
 driver = webdriver.Chrome(options=options)
 
+
+
+
 # --- LOGIN INTO ROBLOX ---
 
 driver.get('https://www.roblox.com/login')
@@ -23,9 +26,32 @@ sleep(5)
 
 visited_games = set()
 
+def get_game_name():
+    try:
+        game_name_element = driver.find_element(By.XPATH, '//h1[contains(@class, "game-name")]')
+        game_name = game_name_element.text.strip()
+        print(f"Game name found: {game_name}")
+        return game_name
+    except NoSuchElementException:
+        print("Game name not found")
+        return "Unknown Game"
+
+def get_game_visits():
+    try:
+        visits_element = driver.find_element(By.ID, 'game-visit-count')
+        visits = visits_element.get_attribute('title').strip()
+        print(f"Game visits found: {visits}")
+        return visits
+    except NoSuchElementException:
+        print("Game visits not found")
+        return "Unknown"
+
 def get_social_links_and_save():
+    game_name = get_game_name()  # Extract the game name
+    game_visits = get_game_visits()  # Extract the game visits
     twitter_link = ""
     discord_link = ""
+    youtube_link = ""
     roblox_group_link = ""
     try:
         twitter_element = driver.find_element(By.XPATH, '//a[contains(@class, "social-link")][contains(@href, "twitter.com")]')
@@ -42,6 +68,13 @@ def get_social_links_and_save():
         print("No Discord link found 👾 : ❌")
 
     try:
+        youtube_element = driver.find_element(By.XPATH, '//a[contains(@class, "social-link")][contains(@href, "youtube.com")]')
+        youtube_link = youtube_element.get_attribute('href')
+        print(f"Discord link found 🍄 : ✅")
+    except NoSuchElementException:
+        print("No Discord link found 👾 : ❌")
+
+    try:
         roblox_group_element = driver.find_element(By.XPATH, '//a[contains(@class, "social-link")][contains(@href, "roblox.com")]')
         roblox_group_link = roblox_group_element.get_attribute('href')
         print(f"Roblox group link found 🦸‍♂️ : ✅")
@@ -51,7 +84,8 @@ def get_social_links_and_save():
     if twitter_link or discord_link or roblox_group_link:
         with open('social_links.csv', 'a', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow([twitter_link, discord_link, roblox_group_link])
+            # Include game name and visits in the CSV
+            writer.writerow([game_name, game_visits, twitter_link, discord_link, youtube_link, roblox_group_link])
 
 def get_recommended_games():
     game_links = []
@@ -68,9 +102,9 @@ def get_recommended_games():
 
 def process_game(game_url):
     global visited_games
-    sleep(random.uniform(1.1, 1.78))
+    sleep(random.uniform(4.1, 6.78))
     driver.get(game_url)
-    sleep(random.uniform(1.2, 1.91))
+    sleep(random.uniform(5.2, 6.91))
     get_social_links_and_save()
     visited_games.add(game_url)
 
@@ -86,13 +120,13 @@ def process_game(game_url):
 
 def get_all_game_urls():
     driver.get('https://www.roblox.com/discover#/sortName/TopGrossing')
-    sleep(random.uniform(1.8, 2.5))  # Adjust sleep time for page load
+    sleep(random.uniform(4.8, 6.5))  # Adjust sleep time for page load
     game_elements = driver.find_elements(By.CLASS_NAME, "game-card-link")
     return [element.get_attribute('href') for element in game_elements]
 
 # --- CHANGE THE INDEX VALUE TO RESUME FROM A SPECIFIC POINT ---
 
-start_index = 132
+start_index = 13
 
 all_game_urls = get_all_game_urls()
 
