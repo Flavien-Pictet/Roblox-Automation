@@ -18,9 +18,9 @@ driver = webdriver.Chrome(options=options)
 
 driver.get('https://www.roblox.com/login')
 username_field = driver.find_element(By.ID, 'login-username')
-username_field.send_keys('0xUnpeg')
+username_field.send_keys('Enter your Roblox username')
 password_field = driver.find_element(By.ID, 'login-password')
-password_field.send_keys('Flavien2002')
+password_field.send_keys('Enter your Roblox password')
 password_field.send_keys(Keys.RETURN)
 sleep(5)
 
@@ -124,7 +124,7 @@ def get_all_game_urls():
     game_elements = driver.find_elements(By.CLASS_NAME, "game-card-link")
     return [element.get_attribute('href') for element in game_elements]
 
-# --- CHANGE THE INDEX VALUE TO RESUME FROM A SPECIFIC POINT ---
+# --- CHANGE THE INDEX VALUE TO RESUME FROM A SPECIFIC GAME ON THE PAGE ---
 
 start_index = 5
 
