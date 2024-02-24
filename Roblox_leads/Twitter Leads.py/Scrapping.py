@@ -1,141 +1,138 @@
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.common.exceptions import NoSuchElementException
-import re
-from time import sleep
-import csv
-import random
+import threading
+import httpx
+import time
 
-options = webdriver.ChromeOptions()
-options.add_argument("--start-maximized")
-driver = webdriver.Chrome(options=options)
+cookie = '...'
+cookie_session = httpx.Client()
+cookie_session.headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+    'Cookie': f'.ROBLOSECURITY={cookie}'
+}
 
+class database:
+    games = []
+    ids = []
+    scraped = {}
 
+with open('/Users/Flavien.PICTET/Automation /Roblox_leads/Twitter Leads.py/games.csv', 'r', encoding='utf-8') as f:
+    database.games = f.read().splitlines()[1:]
+    [database.ids.append(int(game.split(',')[-2])) for game in database.games[1:]]
 
+print(f'Loaded {len(database.games)} games from data.csv!')
 
-# --- LOGIN INTO ROBLOX ---
+def update_games():
+    with open('/Users/Flavien.PICTET/Automation /Roblox_leads/Twitter Leads.py/games.csv', 'w', encoding='utf-8') as f:
+        header = 'Name, Visits, Twitter, Discord, YouTube, Roblox group'
+        games = '\n'.join(database.games)
+        data = f'{header}\n{games}'
+        f.write(data + '\n')
 
-driver.get('https://www.roblox.com/login')
-username_field = driver.find_element(By.ID, 'login-username')
-username_field.send_keys('Enter your Roblox username')
-password_field = driver.find_element(By.ID, 'login-password')
-password_field.send_keys('Enter your Roblox password')
-password_field.send_keys(Keys.RETURN)
-sleep(5)
+session = httpx.Client()
+session.headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'}
 
-visited_games = set()
+response = session.get('https://games.roblox.com/v1/games/sorts?gameSortsContext=GamesDefaultSorts')
+sort_token = [sort for sort in response.json()['sorts'] if sort['name'] == 'TopGrossing'][0]['token']
 
-def get_game_name():
-    try:
-        game_name_element = driver.find_element(By.XPATH, '//h1[contains(@class, "game-name")]')
-        game_name = game_name_element.text.strip()
-        print(f"Game name found: {game_name}")
-        return game_name
-    except NoSuchElementException:
-        print("Game name not found")
-        return "Unknown Game"
+start_rows = 0
+while True:
+    response = session.get(f'https://games.roblox.com/v1/games/list?sortToken={sort_token}&startRows={start_rows}&maxRows=200')
+    for game in response.json()['games']:
+        start_rows += 1
+        player_count = game['playerCount']
+        if player_count >= 1 and player_count <= 100000:
+            place_id = game['placeId']
+            name = game['name']
+            creator_id = game['creatorId']
+            creator_type = game['creatorType']
+            if creator_type == 'User':
+                creator_url = f'https://www.roblox.com/users/{creator_id}/profile'
+            elif creator_type == 'Group':
+                creator_url = f'https://www.roblox.com/groups/{creator_id}'
+            universe_id = game['universeId']
+            if place_id not in database.ids:
+                database.scraped[place_id] = {
+                    'name': name,
+                    'creator_type': creator_type,
+                    'creator_url': creator_url,
+                    'universe_id': universe_id
+                }
+    has_more_games = response.json()['hasMoreRows']
+    if not has_more_games:
+        break
+    time.sleep(1)
 
-def get_game_visits():
-    try:
-        visits_element = driver.find_element(By.ID, 'game-visit-count')
-        visits = visits_element.get_attribute('title').strip()
-        print(f"Game visits found: {visits}")
-        return visits
-    except NoSuchElementException:
-        print("Game visits not found")
-        return "Unknown"
+print(f'Scraped {len(database.scraped.keys())} top grossing games!')
 
-def get_social_links_and_save():
-    game_name = get_game_name()  # Extract the game name
-    game_visits = get_game_visits()  # Extract the game visits
-    twitter_link = ""
-    discord_link = ""
-    youtube_link = ""
-    roblox_group_link = ""
-    try:
-        twitter_element = driver.find_element(By.XPATH, '//a[contains(@class, "social-link")][contains(@href, "twitter.com")]')
-        twitter_link = twitter_element.get_attribute('href')
-        print(f"Twitter link found 🐦 : ✅")
-    except NoSuchElementException:
-        print("No Twitter link found 🐦 : ❌")
+def recommendations():
+    counter = 0
+    while True:
+        try:
+            time.sleep(30)
+            if (counter + 1) > len(database.ids):
+                continue
+            universe_id = database.games[counter].split(',')[-1]
+            response = session.get(f'https://games.roblox.com/v1/games/recommendations/game/{universe_id}')
+            for game in response.json()['games']:
+                player_count = game['playerCount']
+                if player_count >= 1 and player_count <= 100000:
+                    place_id = game['placeId']
+                    name = game['name']
+                    creator_id = game['creatorId']
+                    creator_type = game['creatorType']
+                    if creator_type == 'User':
+                        creator_url = f'https://www.roblox.com/users/{creator_id}/profile'
+                    elif creator_type == 'Group':
+                        creator_url = f'https://www.roblox.com/groups/{creator_id}'
+                    universe_id = game['universeId']
+                    if place_id not in database.ids:
+                        database.scraped[place_id] = {
+                            'name': name,
+                            'creator_type': creator_type,
+                            'creator_url': creator_url,
+                            'universe_id': universe_id
+                        }
+            counter += 1
+            print(f'Scraped recommendations from game #{counter}! There are now {len(database.scraped.keys())} games in the queue.')
+        except:
+            print('An unknown error has occured while attempting to scrape game recommendations! Sleeping for 10 minutes to avoid rate limits...')
+            time.sleep(600)
 
-    try:
-        discord_element = driver.find_element(By.XPATH, '//a[contains(@class, "social-link")][contains(@href, "discord.gg")]')
-        discord_link = discord_element.get_attribute('href')
-        print(f"Discord link found 👾 : ✅")
-    except NoSuchElementException:
-        print("No Discord link found 👾 : ❌")
+threading.Thread(target=recommendations).start()
 
-    try:
-        youtube_element = driver.find_element(By.XPATH, '//a[contains(@class, "social-link")][contains(@href, "youtube.com")]')
-        youtube_link = youtube_element.get_attribute('href')
-        print(f"Discord link found 🍄 : ✅")
-    except NoSuchElementException:
-        print("No Discord link found 👾 : ❌")
-
-    try:
-        roblox_group_element = driver.find_element(By.XPATH, '//a[contains(@class, "social-link")][contains(@href, "roblox.com")]')
-        roblox_group_link = roblox_group_element.get_attribute('href')
-        print(f"Roblox group link found 🦸‍♂️ : ✅")
-    except NoSuchElementException:
-        print("No Roblox group link found 🦸‍♂️ : ❌")
-
-    if twitter_link or discord_link or roblox_group_link:
-        with open('social_links.csv', 'a', newline='') as file:
-            writer = csv.writer(file)
-            # Include game name and visits in the CSV
-            writer.writerow([game_name, game_visits, twitter_link, discord_link, youtube_link, roblox_group_link])
-
-def get_recommended_games():
-    game_links = []
-    game_cards = driver.find_elements(By.XPATH, '//div[@data-testid="game-tile"]')
-    for card in game_cards:
-        player_count_element = card.find_element(By.XPATH, './/span[@class="info-label playing-counts-label"]')
-        player_count_text = player_count_element.text.replace('K', '000')
-        player_count = int(re.sub("[^0-9]", "", player_count_text))
-
-        if 0 <= player_count <= 100000:
-            game_link = card.find_element(By.XPATH, './/a[@class="game-card-link"]')
-            game_links.append(game_link.get_attribute('href'))
-    return game_links
-
-def process_game(game_url):
-    global visited_games
-    sleep(random.uniform(1.1, 1.78))
-    driver.get(game_url)
-    sleep(random.uniform(1.2, 1.91))
-    get_social_links_and_save()
-    visited_games.add(game_url)
-
-
-    recommended_games = get_recommended_games()
-    for recommended_game_url in recommended_games:
-        if recommended_game_url not in visited_games:
-            print(f"Found new game to visit 🌟")
-            return recommended_game_url
-
-    print("No more unique recommended games")
-    return None
-
-def get_all_game_urls():
-    driver.get('https://www.roblox.com/discover#/sortName/TopGrossing')
-    sleep(random.uniform(1.8, 1.9))  # Adjust sleep time for page load
-    game_elements = driver.find_elements(By.CLASS_NAME, "game-card-link")
-    return [element.get_attribute('href') for element in game_elements]
-
-# --- CHANGE THE INDEX VALUE TO RESUME FROM A SPECIFIC GAME ON THE PAGE ---
-
-start_index = 5
-
-all_game_urls = get_all_game_urls()
-
-for i, game_url in enumerate(all_game_urls):
-    if i >= start_index:
-        current_game_url = game_url
-        while current_game_url is not None:
-            current_game_url = process_game(current_game_url)
-            if current_game_url is None:
-                print("Switching to the next game 🎲")
-
-driver.quit()
+while True:
+    time.sleep(5)
+    if database.scraped:
+        try:
+            place_id = list(database.scraped.keys())[0]
+            print(f'Scraping new game: {place_id}')
+            game = database.scraped[place_id]
+            name = game['name']
+            creator_type = game['creator_type']
+            creator_url = game['creator_url']
+            universe_id = game['universe_id']
+            visits = '{:,}'.format(httpx.get(f'https://games.roblox.com/v1/games?universeIds={universe_id}').json()['data'][0]['visits']).replace(',', ' ')
+            twitter = 'N/A'
+            discord = 'N/A'
+            youtube = 'N/A'
+            group = 'N/A'
+            response = cookie_session.get(f'https://games.roblox.com/v1/games/{universe_id}/social-links/list')
+            for social in response.json()['data']:
+                social_url = social['url']
+                social_type = social['type']
+                if social_type == 'Twitter':
+                    twitter = social_url
+                elif social_type == 'Discord':
+                    discord = social_url
+                elif social_type == 'YouTube':
+                    youtube = social_url
+                elif social_type == 'RobloxGroup':
+                    group = social_url
+            if group == 'N/A' and creator_type == 'Group':
+                group = creator_url
+            database.games.append(f'{name},{visits},{twitter},{discord},{youtube},{group},{place_id},{universe_id}')
+            database.ids.append(place_id)
+            del database.scraped[place_id]
+            update_games()
+        except:
+            print('An unknown error has occured while attempting to scrape the game! Sleeping for 10 minutes to avoid rate limits...')
+            time.sleep(600)
